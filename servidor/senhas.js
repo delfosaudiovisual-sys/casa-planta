@@ -15,7 +15,7 @@ function problemaNaSenha(senha, email = '') {
   if (senha.length > 200) return 'A senha pode ter no máximo 200 caracteres.';
   const s = senha.toLowerCase();
   if (COMUNS.has(s) || /^(.)\1+$/.test(s)) return 'Essa senha é muito fácil de adivinhar. Escolha outra.';
-  if (email && s.includes(email.toLowerCase().split('@')[0]) && email.split('@')[0].length >= 4) return 'A senha não pode conter o seu e-mail.';
+  if (email && s === email.toLowerCase()) return 'A senha não pode ser o seu e-mail.';
   return null;
 }
 

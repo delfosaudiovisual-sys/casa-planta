@@ -14,8 +14,8 @@
     "montar:avulso": "node ferramentas/montar.js --avulso",
     "montar:offline": "node ferramentas/montar.js --avulso --offline",
     "verificar": "node ferramentas/verificar-sintaxe.js src/casa-975-3d.html && node ferramentas/verificar-js.js",
-    "test": "node --test testes/",
-    "e2e": "node testes/e2e/navegador.js",
+    "test": "node --test \"testes/*.test.js\"",
+    "e2e": "node testes/e2e/navegador.js && node testes/e2e/fundo.js",
     "foto": "node ferramentas/foto.js",
     "convidar": "node servidor/cli.js"
   },

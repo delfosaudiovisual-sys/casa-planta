@@ -4,18 +4,17 @@ const { gerarHash, conferirSenha, problemaNaSenha } = require('../senhas');
 const { criarSessao, encerrarSessao, exigirUsuario } = require('../sessoes');
 const { erro, sha256, limparTexto } = require('../util');
 
-// depois de 5 senhas erradas para o mesmo e-mail, ele fica bloqueado por 15 minutos (além do limite por IP)
-const falhas = new Map();
-const BLOQUEIO_MS = 15 * 60e3;
-function bloqueado(email) { const f = falhas.get(email); return f && f.n >= 5 && Date.now() - f.t < BLOQUEIO_MS; }
-function anotarFalha(email) {
-  const f = falhas.get(email); const n = f && Date.now() - f.t < BLOQUEIO_MS ? f.n + 1 : 1;
-  falhas.set(email, { n, t: Date.now() });
-  if (falhas.size > 10000) falhas.clear();
-}
-
 module.exports = async function (app) {
   const { db } = app;
+  // depois de 5 senhas erradas para o mesmo e-mail, ele fica bloqueado por 15 minutos (além do limite por IP)
+  const falhas = new Map();
+  const BLOQUEIO_MS = 15 * 60e3;
+  const bloqueado = email => { const f = falhas.get(email); return f && f.n >= 5 && Date.now() - f.t < BLOQUEIO_MS; };
+  const anotarFalha = email => {
+    const f = falhas.get(email), n = f && Date.now() - f.t < BLOQUEIO_MS ? f.n + 1 : 1;
+    falhas.set(email, { n, t: Date.now() });
+    if (falhas.size > 10000) falhas.clear();
+  };
   const limiteEntrar = { rateLimit: { max: 10, timeWindow: '15 minutes', keyGenerator: req => req.ip } };
 
   app.post('/api/entrar', {

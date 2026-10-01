@@ -1,0 +1,29 @@
+# Para um servidor próprio (VPS, computador ligado o tempo todo). Sobe o programa e o Caddy, que cuida do HTTPS
+# sozinho (certificado gratuito do Let's Encrypt). Antes: aponte o domínio para o IP do servidor e crie o arquivo .env
+# a partir de .env.exemplo. Depois: docker compose up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /dados
+      URL_PUBLICA: https://${DOMINIO}
+    volumes:
+      - dados:/dados
+    expose:
+      - "3000"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${DOMINIO} --to app:3000
+    volumes:
+      - caddy:/data
+    depends_on:
+      - app
+volumes:
+  dados:
+  caddy:

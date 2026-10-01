@@ -249,10 +249,10 @@
       // A só é cortada se B atravessa toda a espessura de A, numa das pontas de A
       const espA = ax ? [A[1], A[3]] : [A[0], A[2]], espB = ax ? [B[1], B[3]] : [B[0], B[2]];
       if (!(espB[0] <= espA[0] + 1e-6 && espB[1] >= espA[1] - 1e-6)) continue;
-      const a0 = ax ? A[0] : A[1], a1 = ax ? A[2] : A[3], b0 = ax ? B[0] : B[1], b1 = ax ? B[2] : B[3];
+      const a0 = ax ? A[0] : A[1], a1 = ax ? A[2] : A[3], b0 = ax ? B[0] : B[1], b1 = ax ? B[2] : B[3], tA = espA[1] - espA[0];
       let n0 = a0, n1 = a1;
-      if (b0 <= a0 + 1e-6 && b1 < a1) n0 = b1;          // B cobre o começo de A
-      else if (b1 >= a1 - 1e-6 && b0 > a0) n1 = b0;     // B cobre o fim de A
+      if (b0 <= a0 + tA + 1e-6 && b1 < a1) n0 = b1;          // B cobre o começo de A (ou A passa um toco menor que a espessura)
+      else if (b1 >= a1 - tA - 1e-6 && b0 > a0) n1 = b0;     // B cobre o fim de A
       else continue;
       if (n1 - n0 < 0.01) continue;
       if (ax) { A[0] = arred(n0); A[2] = arred(n1); } else { A[1] = arred(n0); A[3] = arred(n1); }

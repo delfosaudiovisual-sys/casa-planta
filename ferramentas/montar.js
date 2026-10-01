@@ -55,7 +55,8 @@ copiar(path.join(raiz, 'compartilhado', 'planta.js'), path.join(publico, 'js', '
 
 // bibliotecas
 for (const arq of threeUsados()) copiar(exigir(nm('three', arq)), path.join(publico, 'vendor', 'three', arq));
-for (const arq of ['pdf.min.mjs', 'pdf.worker.min.mjs']) copiar(exigir(nm('pdfjs-dist', 'build', arq)), path.join(publico, 'vendor', 'pdfjs', arq));
+// versão legacy: funciona também em navegadores de alguns anos atrás
+for (const arq of ['pdf.min.mjs', 'pdf.worker.min.mjs']) copiar(exigir(nm('pdfjs-dist', 'legacy', 'build', arq)), path.join(publico, 'vendor', 'pdfjs', arq));
 copiar(exigir(nm('dxf-parser', 'dist', 'dxf-parser.js')), path.join(publico, 'vendor', 'dxf-parser.js'));
 let css = '';
 for (const [familia, pacote, pesos] of [['IBM Plex Sans', 'ibm-plex-sans', [400, 500, 600, 700]], ['IBM Plex Mono', 'ibm-plex-mono', [400, 500]]]) {

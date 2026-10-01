@@ -8,3 +8,4 @@ dados-servidor/
 *.db-wal
 *.db-shm
 .env
+.ca-teste.crt

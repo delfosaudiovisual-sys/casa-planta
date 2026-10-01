@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-avulso
+dados-servidor
+ferramentas/fotos
+testes/e2e/fotos
+.git
+.github
+.env
+*.db
+*.db-wal
+*.db-shm

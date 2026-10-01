@@ -65,8 +65,8 @@ async function criarApp(cfg, opcoes = {}) {
   app.addHook('onRequest', async (req) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
     const origem = req.headers.origin, site = req.headers['sec-fetch-site'];
-    const esperada = cfg.urlPublica || `${req.protocol}://${req.host}`;
-    if (origem && origem !== esperada) throw new ErroHttp(403, 'Pedido de outro site recusado.');
+    // vale o endereço público configurado e o próprio endereço por onde o pedido chegou (ex.: domínio próprio)
+    if (origem && origem !== `${req.protocol}://${req.host}` && origem !== cfg.urlPublica) throw new ErroHttp(403, 'Pedido de outro site recusado.');
     if (site && !['same-origin', 'none'].includes(site)) throw new ErroHttp(403, 'Pedido de outro site recusado.');
   });
 

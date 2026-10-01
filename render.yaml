@@ -1,0 +1,27 @@
+# Implantação no Render com um clique (Blueprint). Passo a passo em docs/IMPLANTAR.md.
+# Cada atualização no branch principal do GitHub só entra no ar depois que os testes (GitHub Actions) passam.
+services:
+  - type: web
+    name: casa-planta
+    runtime: docker
+    plan: starter            # o disco permanente exige um plano pago; o grátis apaga os dados a cada atualização
+    region: virginia
+    healthCheckPath: /saude
+    autoDeployTrigger: checksPass
+    disk:
+      name: dados
+      mountPath: /dados
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /dados
+      - key: ADMIN_EMAIL           # e-mail do primeiro administrador (você)
+        sync: false
+      - key: ADMIN_SENHA_INICIAL   # senha do primeiro acesso, com 10 caracteres ou mais; troque depois de entrar
+        sync: false
+      - key: ADMIN_NOME
+        sync: false
+      - key: ANTHROPIC_API_KEY     # opcional: liga as funções com o Claude (medidas, preços e leitura da planta)
+        sync: false

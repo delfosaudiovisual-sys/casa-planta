@@ -206,7 +206,7 @@ button{touch-action:manipulation}
 
 <div class="app">
   <header>
-    <h1>Casa 975 <small>lote 5,00 × 25,00 m · pé-direito 2,76 m</small></h1>
+    <h1><span id="casaNome">Casa 975</span> <small id="casaInfo">lote 5,00 × 25,00 m · pé-direito 2,76 m</small></h1>
     <div class="seg" role="group" aria-label="Vista">
       <button id="v3d" aria-pressed="true">3D</button>
       <button id="vtop" aria-pressed="false">Planta</button>
@@ -314,7 +314,7 @@ button{touch-action:manipulation}
         <label class="f">Link da loja (opcional)
           <input id="qLink" placeholder="https://…">
         </label>
-        <p class="note">O Claude desta página não consegue abrir sites (o navegador bloqueia por segurança). Ele lê o nome, a loja e o texto do endereço, reconhece o modelo e estima medidas e preço. Para ler a página da loja de verdade, adicione o item com o link e peça no chat do Claude: <b>confere os links da Casa 975</b>.</p>
+        <p class="note">O Claude desta página não consegue abrir sites (o navegador bloqueia por segurança). Ele lê o nome, a loja e o texto do endereço, reconhece o modelo e estima medidas e preço. Para ler a página da loja de verdade, adicione o item com o link e peça no chat do Claude: <b class="pedidoLinks">confere os links da Casa 975</b>.</p>
         <div class="row">
           <button class="btn primary" id="qGo">Buscar medidas e preço</button>
           <button class="btn" id="qStop" hidden>Parar</button>
@@ -404,11 +404,11 @@ button{touch-action:manipulation}
             <select id="sunSide">
               <option value="0">Frente (rua)</option>
               <option value="45">Frente-esquerda</option>
-              <option value="90">Esquerda (garagem, quartos)</option>
+              <option value="90">Esquerda</option>
               <option value="135">Fundo-esquerda</option>
               <option value="180">Fundo (quintal)</option>
               <option value="225">Fundo-direita</option>
-              <option value="270">Direita (sala, cozinha)</option>
+              <option value="270">Direita</option>
               <option value="315">Frente-direita</option>
             </select>
           </label>
@@ -509,43 +509,84 @@ const $ = id => document.getElementById(id);
 if (!window.THREE) { $('hint').textContent = 'Não consegui carregar o motor 3D. Verifique a conexão e recarregue a página.'; return; }
 
 // ------------------------------------------------------------------
-// Geometria da casa (m). Plano: x = oeste→leste (0..5), y = rua→fundo (0..25).
-// Mundo 3D: X = x, Z = -y, Y = altura. Medidas internas do croqui + paredes de 15 cm.
+// Geometria da casa (m). Plano: x = esquerda→direita olhando da rua (0..largura do lote), y = rua→fundo (0..profundidade).
+// Mundo 3D: X = x, Z = -y, Y = altura. A planta vem de window.__PLANTA (no programa, cada projeto tem a sua);
+// sem ela vale a Casa 975 abaixo: medidas internas do croqui + paredes de 15 cm.
 // ------------------------------------------------------------------
-const H = 2.76, LW = 5.00, LD = 25.00, DOOR_H = 2.10, FLOOR = 0.02;
-const WALLS = [
-  // [x0,y0,x1,y1, aberturas [a0,a1,base,topo,tipo] ao longo do eixo maior]
-  [0.00, 8.40, 0.15, 17.34, []],
-  [0.15, 8.40, 2.48, 8.55, [[0.55,1.95,1.00,2.10,'win']]],
-  [2.48, 7.11, 2.63, 17.34, [[7.41,8.21,0,DOOR_H,'door'],[8.80,9.60,0,DOOR_H,'door'],[13.08,13.88,0,DOOR_H,'door']]],
-  [0.15,12.78, 2.48,12.93, []],
-  [0.15,17.19, 2.48,17.34, [[0.95,2.20,1.00,2.10,'win']]],
-  [2.63, 7.11, 3.55, 7.26, [[2.66,3.52,0,DOOR_H,'glass']]],
-  [3.55, 5.68, 3.70, 8.58, [[6.60,7.00,1.60,2.10,'basc'],[7.46,8.16,0,DOOR_H,'door']]],   // basculante do banheiro dá para a garagem (nicho da entrada), depois do box
-  [3.70, 5.68, 5.00, 5.83, []],
-  [4.85, 5.83, 5.00,16.35, []],
-  [3.70, 8.43, 4.85, 8.58, []],
-  [2.63,16.20, 4.85,16.35, [[2.71,3.51,0,DOOR_H,'door'],[3.73,4.58,1.10,2.10,'win']]],
-  [0.00,17.34, 0.15,19.24, []],       // laterais da área coberta: parede rebocada até o fim do piso
-  [4.85,16.35, 5.00,19.24, []],
-];
-const DOORS = [ // dobradiça (x,y), largura da folha, ângulo aberto e fechado (graus; 0 = leste, 90 = fundo)
-  [2.63, 7.41, 0.80, 0, 90], [3.70, 8.16, 0.70, 0, -90], [2.48, 8.80, 0.80, 180, 90], [2.48,13.08, 0.80, 180, 90], [2.71,16.20, 0.80, -90, 0],
-];
-const ROOMS = [
-  {id:'q1', nome:'Quarto 1', r:[0.15,8.55,2.48,12.78], dims:'2,33 × 4,23 m'},
-  {id:'q2', nome:'Quarto 2', r:[0.15,12.93,2.48,17.19], dims:'2,42 × 4,26 m'},
-  {id:'sala', nome:'Sala', r:[2.63,8.58,4.85,13.90], dims:'sala + cozinha 2,22 × 7,62 m'},
-  {id:'coz', nome:'Cozinha', r:[2.63,13.90,4.85,16.20], dims:''},
-  {id:'ban', nome:'Banheiro', r:[3.70,5.83,4.85,8.43], dims:'1,15 × 2,60 m'},
-  {id:'hall', nome:'Hall', r:[2.63,7.26,3.55,8.58], dims:''},
-  {id:'gar', nome:'Garagem', r:[0.00,0.15,3.55,8.40], dims:''},
-  {id:'cob', nome:'Área coberta', r:[0.00,16.35,5.00,19.24], dims:''},
-  {id:'quin', nome:'Quintal', r:[0.00,19.24,5.00,24.90], dims:''},
-  {id:'jard', nome:'Jardim', r:[3.70,0.15,5.00,5.68], dims:''},
-];
-const INTERIOR = new Set(['q1','q2','sala','coz','ban','hall']);
+const FLOOR = 0.02;
+const PLANTA_975 = {
+  nome:'Casa 975', lote:{largura:5.00, profundidade:25.00}, peDireito:2.76, alturaPorta:2.10,
+  paredes:[
+    // [x0,y0,x1,y1, aberturas [a0,a1,base,topo,tipo] ao longo do eixo maior]; tipo: win | basc | door | glass
+    [0.00, 8.40, 0.15, 17.34, []],
+    [0.15, 8.40, 2.48, 8.55, [[0.55,1.95,1.00,2.10,'win']]],
+    [2.48, 7.11, 2.63, 17.34, [[7.41,8.21,0,2.10,'door'],[8.80,9.60,0,2.10,'door'],[13.08,13.88,0,2.10,'door']]],
+    [0.15,12.78, 2.48,12.93, []],
+    [0.15,17.19, 2.48,17.34, [[0.95,2.20,1.00,2.10,'win']]],
+    [2.63, 7.11, 3.55, 7.26, [[2.66,3.52,0,2.10,'glass']]],
+    [3.55, 5.68, 3.70, 8.58, [[6.60,7.00,1.60,2.10,'basc'],[7.46,8.16,0,2.10,'door']]],   // basculante do banheiro dá para a garagem (nicho da entrada), depois do box
+    [3.70, 5.68, 5.00, 5.83, []],
+    [4.85, 5.83, 5.00,16.35, []],
+    [3.70, 8.43, 4.85, 8.58, []],
+    [2.63,16.20, 4.85,16.35, [[2.71,3.51,0,2.10,'door'],[3.73,4.58,1.10,2.10,'win']]],
+    [0.00,17.34, 0.15,19.24, []],       // laterais da área coberta: parede rebocada até o fim do piso
+    [4.85,16.35, 5.00,19.24, []],
+  ],
+  portas:[ // folhas de madeira: dobradiça (x,y), largura da folha, ângulo aberto e fechado (graus; 0 = leste, 90 = fundo)
+    [2.63, 7.41, 0.80, 0, 90], [3.70, 8.16, 0.70, 0, -90], [2.48, 8.80, 0.80, 180, 90], [2.48,13.08, 0.80, 180, 90], [2.71,16.20, 0.80, -90, 0],
+  ],
+  comodos:[ // interno: dentro de casa (piso, forro, rodapé); parede 'azulejo'; rotulo: false ou [x,y]; atalho: false tira o botão e o nome no mapa
+    {id:'q1', nome:'Quarto 1', r:[0.15,8.55,2.48,12.78], dims:'2,33 × 4,23 m', interno:true},
+    {id:'q2', nome:'Quarto 2', r:[0.15,12.93,2.48,17.19], dims:'2,42 × 4,26 m', interno:true},
+    {id:'sala', nome:'Sala', r:[2.63,8.58,4.85,13.90], dims:'sala + cozinha 2,22 × 7,62 m', interno:true},
+    {id:'coz', nome:'Cozinha', r:[2.63,13.90,4.85,16.20], dims:'', interno:true},
+    {id:'ban', nome:'Banheiro', r:[3.70,5.83,4.85,8.43], dims:'1,15 × 2,60 m', interno:true, parede:'azulejo'},
+    {id:'hall', nome:'Hall', r:[2.63,7.26,3.55,8.58], dims:'', interno:true, rotulo:false, atalho:false},
+    {id:'gar', nome:'Garagem', r:[0.00,0.15,3.55,8.40], dims:'', rotulo:[1.775,3.2]},
+    {id:'cob', nome:'Área coberta', r:[0.00,16.35,5.00,19.24], dims:''},
+    {id:'quin', nome:'Quintal', r:[0.00,19.24,5.00,24.90], dims:''},
+    {id:'jard', nome:'Jardim', r:[3.70,0.15,5.00,5.68], dims:'', atalho:false},
+  ],
+  azulejos:[[3.25,13.90,4.85,16.20],[2.63,15.90,4.85,16.20]],      // trechos de parede com azulejo fora dos cômodos 'azulejo' (cozinha)
+  pisosExternos:[[0,0.15,3.55,8.40],[2.63,16.35,5.0,19.24],[0,17.34,2.63,19.24]],
+  forros:[[0,5.68,2.48,8.40],[2.48,5.68,3.55,7.11],[2.63,16.35,5.0,19.24],[0,17.34,2.63,19.24]],   // além dos cômodos internos
+  luminarias:[[1.31,10.66],[1.31,15.06],[3.74,11.2],[3.74,15.0],[4.27,7.1],[3.09,7.9],[1.8,7.0],[3.8,17.8]],
+  muros:[[-0.12,0,0,8.40],[-0.12,19.24,0,25],[5.0,0,5.12,5.68],[5.0,19.24,5.12,25],[-0.12,24.88,5.12,25.0]], alturaMuro:2.0,
+  pilares:[[4.23,0,5.12,0.2,2.05]],
+  portao:[0,4.23], medidor:[4.5,4.85],
+  telhado:{x0:0, x1:5, frente:5.45, fundo:19.45, cumeeira:12.45, beiral:2.88, inclinacao:0.22},
+  boxes:[{eixo:'x', a:3.70, b:4.85, c:6.50}],     // box de vidro de correr: trilho de a até b, começando em c no outro eixo
+  vizinhanca:'geminadas',
+  entrada:{x:1.9, y:2.4, rumo:-0.18},
+  lados:{esquerda:'garagem e quartos', direita:'sala e cozinha'},
+};
+function lerPlanta(p){
+  const P = JSON.parse(JSON.stringify(p && typeof p==='object' ? p : PLANTA_975));   // cópia: paredes e portas mudam em applyOpenings
+  const num = (v, d) => (typeof v==='number' && isFinite(v)) ? v : d;
+  P.lote = {largura:num(P.lote && P.lote.largura, 10), profundidade:num(P.lote && P.lote.profundidade, 25)};
+  P.peDireito = num(P.peDireito, 2.7); P.alturaPorta = num(P.alturaPorta, 2.10); P.alturaMuro = num(P.alturaMuro, 2.0);
+  for (const k of ['paredes','portas','comodos','azulejos','pisosExternos','forros','luminarias','muros','pilares','boxes']) if (!Array.isArray(P[k])) P[k] = [];
+  for (const w of P.paredes) if (!Array.isArray(w[4])) w[4] = [];
+  P.comodos.forEach((c, i) => { if (c.id == null) c.id = 'c'+i; c.id = String(c.id); c.nome = String(c.nome || 'Cômodo'); });
+  if (!P.telhado || typeof P.telhado!=='object') P.telhado = null;
+  if (!Array.isArray(P.portao)) P.portao = null;
+  if (!Array.isArray(P.medidor)) P.medidor = null;
+  P.vizinhanca = P.vizinhanca==='nenhuma' ? 'nenhuma' : 'geminadas';
+  const E = P.entrada || {};
+  P.entrada = {x:num(E.x, P.lote.largura/2), y:num(E.y, Math.min(2.4, P.lote.profundidade/2)), rumo:num(E.rumo, 0)};
+  P.lados = P.lados || {};
+  P.nome = String(P.nome || 'Casa');
+  return P;
+}
+const PL = lerPlanta(window.__PLANTA);
+const H = PL.peDireito, LW = PL.lote.largura, LD = PL.lote.profundidade, DOOR_H = PL.alturaPorta;
+const NOME = PL.nome, CHAVE = window.__PLANTA && PL.chave ? String(PL.chave) : 'casa975';    // prefixo das chaves do localStorage
+const WALLS = PL.paredes;
+const DOORS = PL.portas;
+const ROOMS = PL.comodos;
+const INTERIOR = new Set(ROOMS.filter(r => r.interno).map(r => r.id));
 const ROOM = Object.fromEntries(ROOMS.map(r => [r.id, r]));
+const LOTE_TODO = {id:'', nome:'o terreno', r:[0,0,LW,LD]};
 
 // ------------------------------------------------------------------ utilidades
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -560,6 +601,11 @@ function roomAt(x,y){ for (const r of ROOMS){ const [a,b,c,d]=r.r; if (x>=a&&x<=
 function hash(s){ let h=2166136261; for (const ch of String(s)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h>>>0; }
 function rng(seed){ let a = seed>>>0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const norm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const SLUG = norm(NOME).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'casa';
+const m2 = v => v.toFixed(2).replace('.',',');
+$('casaNome').textContent = NOME; document.title = `${NOME} em 3D`;
+$('casaInfo').textContent = `lote ${m2(LW)} × ${m2(LD)} m · pé-direito ${m2(H)} m`;
+for (const el of document.querySelectorAll('.pedidoLinks')) el.textContent = `confere os links da ${NOME}`;
 
 // ------------------------------------------------------------------ renderizador, câmeras, luzes, céu
 const canvas = $('view');
@@ -589,10 +635,11 @@ scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff3e2, 2.2);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, {left:-17, right:17, top:17, bottom:-17, near:1, far:90});
+const SHADOW_E = Math.max(LD, LW)/2 + 4.5;     // sombra cobre o lote todo
+Object.assign(sun.shadow.camera, {left:-SHADOW_E, right:SHADOW_E, top:SHADOW_E, bottom:-SHADOW_E, near:1, far:90});
 sun.shadow.bias = -0.0003;
 sun.shadow.normalBias = 0.02;
-sun.target.position.set(2.5, 0, -12.5);
+sun.target.position.set(LW/2, 0, -LD/2);
 scene.add(sun, sun.target);
 
 let sky = null, envRT = null;
@@ -907,11 +954,12 @@ function surfaceAt(x,y){
   if (inWall(x,y)) return 'reveal';
   const r = roomAt(x,y);
   if (!r || !INTERIOR.has(r.id)) return 'ext';
-  if (r.id==='ban') return 'tile';
-  if (r.id==='coz' && (x>3.25 || y>15.9)) return 'tile';
+  if (r.parede==='azulejo') return 'tile';
+  for (const [a,b,c,d] of PL.azulejos) if (x>a && x<c && y>b && y<d) return 'tile';
   return 'paint';
 }
-const BX = new Set([3.25]), BY = new Set([15.9]);
+const BX = new Set(), BY = new Set();
+for (const [a,b,c,d] of PL.azulejos){ BX.add(a); BX.add(c); BY.add(b); BY.add(d); }
 for (const r of ROOMS){ BX.add(r.r[0]); BX.add(r.r[2]); BY.add(r.r[1]); BY.add(r.r[3]); }
 for (const w of WALLS){ BX.add(w[0]); BX.add(w[2]); BY.add(w[1]); BY.add(w[3]); }
 const BXs = [...BX].sort((a,b)=>a-b), BYs = [...BY].sort((a,b)=>a-b);
@@ -935,16 +983,17 @@ for (const w of WALLS){
   if (end>cur) SOLIDS.push(alongX?[cur,y0,end,y1]:[x0,cur,x1,end]);
 }
 const FIXED_SOLIDS = [];     // a pia do banheiro virou um item editável; o vaso fixo foi retirado
-const MUROS = [[-0.12,0,0,8.40],[-0.12,19.24,0,25],[5.0,0,5.12,5.68],[5.0,19.24,5.12,25],[-0.12,24.88,5.12,25.0]];
-const PILLAR = [4.23,0,5.12,0.2];
-SOLIDS.push(...FIXED_SOLIDS, ...MUROS, PILLAR);
+const MUROS = PL.muros.map(m => m.slice(0,4)), MURO_H = PL.alturaMuro;
+const PILLARS = PL.pilares.map(p => p.slice(0,4)), PILLAR_H = PL.pilares.map(p => typeof p[4]==='number' ? p[4] : MURO_H+0.05);
+SOLIDS.push(...FIXED_SOLIDS, ...MUROS, ...PILLARS);
 
 // ------------------------------------------------------------------ portas que abrem e fecham (clique na porta; ao caminhar, abrem quando você chega)
 const DOOR_T = {};                                   // estado de cada porta: t (0 fechada … 1 aberta) e alvo
 const doorParts = new Map();
-const DOOR_DEFAULT = {vidro:0, box:0};               // as de madeira começam abertas, como na planta
-try { for (const [k,v] of Object.entries(JSON.parse(localStorage.getItem('casa975-portas') || '{}'))) DOOR_T[k] = {t:+v ? 1 : 0, target:+v ? 1 : 0}; } catch {}
-function saveDoors(){ try { localStorage.setItem('casa975-portas', JSON.stringify(Object.fromEntries(Object.entries(DOOR_T).map(([k,v]) => [k, v.target])))); } catch {} }
+const DOOR_DEFAULT = {vidro:0, box:0};               // as de madeira começam abertas, como na planta (vidro2, box2… idem)
+const doorStart = id => DOOR_DEFAULT[id] ?? (/^(vidro|box)\d+$/.test(id) ? 0 : 1);
+try { for (const [k,v] of Object.entries(JSON.parse(localStorage.getItem(CHAVE+'-portas') || '{}'))) DOOR_T[k] = {t:+v ? 1 : 0, target:+v ? 1 : 0}; } catch {}
+function saveDoors(){ try { localStorage.setItem(CHAVE+'-portas', JSON.stringify(Object.fromEntries(Object.entries(DOOR_T).map(([k,v]) => [k, v.target])))); } catch {} }
 function doorGap(hx, hy, w, closed){                 // vão da porta na planta (serve para colisão ao caminhar)
   const c = closed*Math.PI/180, cx = Math.cos(c), cy = Math.sin(c), e = 0.01;
   for (const [x0,y0,x1,y1] of WALLS){
@@ -960,7 +1009,7 @@ function applyDoor(p){
   else p.group.position.set(p.axis[0]*p.dist*e, 0, p.axis[1]*p.dist*e);
 }
 function registerDoor(id, p){
-  const d0 = DOOR_DEFAULT[id] ?? 1;
+  const d0 = doorStart(id);
   p.id = id; p.st = DOOR_T[id] || (DOOR_T[id] = {t:d0, target:d0});
   if (p.gap && !p.center) p.center = [(p.gap[0]+p.gap[2])/2, (p.gap[1]+p.gap[3])/2];
   p.group.traverse(o => { if (o.isMesh) o.userData.door = id; });
@@ -1027,9 +1076,9 @@ function applyOpenings(ov){                       // devolve true quando algo mu
     d[2] = +(b-a).toFixed(3); d[5] = top; if (O.alongX) d[0] = h; else d[1] = h;
   });
   const ws = computeWallSolids();
-  SOLIDS.length = 0; SOLIDS.push(...ws, ...FIXED_SOLIDS, ...MUROS, PILLAR);
+  SOLIDS.length = 0; SOLIDS.push(...ws, ...FIXED_SOLIDS, ...MUROS, ...PILLARS);
   WALL_SOLIDS.length = 0; WALL_SOLIDS.push(...ws);
-  OBST.length = 0; OBST.push(...ws.map(r => ({r, h0:0, h1:H})), ...MUROS.map(r => ({r, h0:0, h1:2.0})), {r:PILLAR, h0:0, h1:2.05});
+  OBST.length = 0; OBST.push(...ws.map(r => ({r, h0:0, h1:H})), ...MUROS.map(r => ({r, h0:0, h1:MURO_H})), ...PILLARS.map((r, i) => ({r, h0:0, h1:PILLAR_H[i]})));
   navBase = null; navVersion++;
   return true;
 }
@@ -1065,7 +1114,7 @@ function addSwitches(target, top){
 }
 function buildShellInto(target, cut, main=false){
   target.clear();
-  const top = cut ? 1.20 : H, B = new MeshBuilder();
+  const top = cut ? 1.20 : H, B = new MeshBuilder(); let glassN = 0;
   for (const w of WALLS){
     const [x0,y0,x1,y1,ops] = w, {alongX, segs} = wallSegs(w);
     for (const [sa,sb,h0,h1raw] of segs){
@@ -1132,7 +1181,7 @@ function buildShellInto(target, cut, main=false){
         leaf(B, a+t, m+0.02, zf, false);
         const LB = new MeshBuilder(), lg = new THREE.Group(); leaf(LB, m-0.02, b-t, zm, true); LB.build(lg);
         lg.userData.slide = true; target.add(lg);
-        if (main){ const r = R(a,b,c0,c1); registerDoor('vidro', {kind:'slide', group:lg, dist:(m-0.02)-(a+t)-0.01, axis: alongX ? [-1,0] : [0,1], gap:r}); }
+        if (main){ const r = R(a,b,c0,c1); registerDoor(glassN++ ? 'vidro'+glassN : 'vidro', {kind:'slide', group:lg, dist:(m-0.02)-(a+t)-0.01, axis: alongX ? [-1,0] : [0,1], gap:r}); }
         box(a,b,c0,c1,0,FLOOR+0.004,'granite');
       } else {
         box(a,a+0.02,c0,c1,0,topO,'wood'); box(b-0.02,b,c0,c1,0,topO,'wood'); box(a,b,c0,c1,topO-0.02,topO,'wood');
@@ -1164,36 +1213,38 @@ function buildShell(cut){ buildShellInto(shell, cut, true); ceilGroup.visible = 
 
 // ------------------------------------------------------------------ pisos, forros, luminárias
 const LAMPS = [];
+const CX0 = -2*LW-6, CX1 = 3*LW+6;           // trecho da rua desenhado: dois lotes vizinhos de cada lado (três do outro lado da rua)
 const lotGroup = new THREE.Group(), worldGroup = new THREE.Group(); staticGroup.add(lotGroup, worldGroup);
 {
   const B = new MeshBuilder(), Wd = new MeshBuilder();
   for (const id of INTERIOR){ const [a,b,c,d] = ROOM[id].r; floorQuad(B,'floorInt',a,b,c,d,FLOOR); }
-  floorQuad(B,'floorExt',0,0.15,3.55,8.40,0.012);
-  floorQuad(B,'floorExt',2.63,16.35,5.0,19.24,0.012); floorQuad(B,'floorExt',0,17.34,2.63,19.24,0.012);
+  for (const [a,b,c,d] of PL.pisosExternos) floorQuad(B,'floorExt',a,b,c,d,0.012);
   floorQuad(B,'grav',0,0,LW,LD,0.002);
-  floorQuad(Wd,'calc',-16,-2.2,21,0,0.03); addPB(Wd,-16,-2.35,21,-2.2,0,0.12,'calc');
-  floorQuad(Wd,'asph',-40,-11.05,45,-2.35,0);
-  floorQuad(Wd,'soil',-40,-40,-16,60,-0.01); floorQuad(Wd,'soil',21,-40,45,60,-0.01); floorQuad(Wd,'soil',-16,25,21,60,-0.01);
-  floorQuad(Wd,'soil',-16,0,0,25,-0.01); floorQuad(Wd,'soil',5,0,21,25,-0.01); floorQuad(Wd,'soil',-16,-40,21,-13.5,-0.01);
+  floorQuad(Wd,'calc',CX0,-2.2,CX1,0,0.03); addPB(Wd,CX0,-2.35,CX1,-2.2,0,0.12,'calc');
+  floorQuad(Wd,'asph',CX0-24,-11.05,CX1+24,-2.35,0);
+  const sy0 = -15-LD, sy1 = LD+35;           // terra em volta dos lotes (rua na frente, lotes vizinhos dos lados e do outro lado da rua)
+  floorQuad(Wd,'soil',CX0-24,sy0,CX0,sy1,-0.01); floorQuad(Wd,'soil',CX1,sy0,CX1+24,sy1,-0.01); floorQuad(Wd,'soil',CX0,LD,CX1,sy1,-0.01);
+  floorQuad(Wd,'soil',CX0,0,0,LD,-0.01); floorQuad(Wd,'soil',LW,0,CX1,LD,-0.01); floorQuad(Wd,'soil',CX0,sy0,CX1,-13.5,-0.01);
   Wd.build(worldGroup);
-  for (const [a,b,c,d] of MUROS) addPB(B,a,b,c,d,0,2.0,'muro');
-  addPB(B,...PILLAR,0,2.05,'ext');
+  for (const [a,b,c,d] of MUROS) addPB(B,a,b,c,d,0,MURO_H,'muro');
+  PILLARS.forEach((p, i) => addPB(B,...p,0,PILLAR_H[i],'ext'));
   B.build(lotGroup);
   // portão de barras
   const G = new MeshBuilder();
-  for (let x=0.03; x<4.2; x+=0.105) addPB(G, x,0.05,x+0.025,0.075,0,1.8,'steel');
-  addPB(G, 0,0.045,4.23,0.08,1.72,1.78,'steel'); addPB(G, 0,0.045,4.23,0.08,0.95,0.99,'steel');
-  addPB(G, 4.5,-0.03,4.85,0.0,1.1,1.55,'reveal');   // caixa do medidor
+  if (PL.portao){
+    const [ga, gb] = PL.portao;
+    for (let x=ga+0.03; x<gb-0.03; x+=0.105) addPB(G, x,0.05,x+0.025,0.075,0,1.8,'steel');
+    addPB(G, ga,0.045,gb,0.08,1.72,1.78,'steel'); addPB(G, ga,0.045,gb,0.08,0.95,0.99,'steel');
+  }
+  if (PL.medidor) addPB(G, PL.medidor[0],-0.03,PL.medidor[1],0.0,1.1,1.55,'reveal');   // caixa do medidor
   G.build(lotGroup);
   // forros (só aparecem vistos de baixo)
   const C = new MeshBuilder();
   for (const id of INTERIOR){ const [a,b,c,d] = ROOM[id].r; ceilQuad(C,'ceil',a,b,c,d,H); }
-  ceilQuad(C,'ceil',0,5.68,2.48,8.40,H); ceilQuad(C,'ceil',2.48,5.68,3.55,7.11,H);
-  ceilQuad(C,'ceil',2.63,16.35,5.0,19.24,H); ceilQuad(C,'ceil',0,17.34,2.63,19.24,H);
+  for (const [a,b,c,d] of PL.forros) ceilQuad(C,'ceil',a,b,c,d,H);
   C.build(ceilGroup, {cast:true});
   // luminárias de teto
-  const spots = [['q1',1.31,10.66],['q2',1.31,15.06],['sala',3.74,11.2],['coz',3.74,15.0],['ban',4.27,7.1],['hall',3.09,7.9],['gar',1.8,7.0],['cob',3.8,17.8]];
-  for (const [id,x,y] of spots){
+  for (const [x,y] of PL.luminarias){
     const disk = new THREE.Mesh(new THREE.CircleGeometry(0.11,24), MAT.lamp);   // virado para baixo: some quando visto de cima
     disk.rotation.x = Math.PI/2; disk.position.set(x, H-0.004, -y); ceilGroup.add(disk);
     const L = new THREE.PointLight(0xffd8a8, 0, 7, 2); L.userData.lamp = true; L.position.set(x, H-0.2, -y); scene.add(L); LAMPS.push(L);
@@ -1201,8 +1252,8 @@ const lotGroup = new THREE.Group(), worldGroup = new THREE.Group(); staticGroup.
 }
 
 // ------------------------------------------------------------------ telhado (duas águas) — também usado nas casas vizinhas
-const ROOF = {yF:5.45, yB:19.45, yR:12.45, hE:2.88, s:0.22};
-ROOF.hR = ROOF.hE + ROOF.s*(ROOF.yR-ROOF.yF);
+const TL = PL.telhado, ROOF = TL ? {yF:TL.frente, yB:TL.fundo, yR:TL.cumeeira, hE:TL.beiral, s:TL.inclinacao} : null;
+if (ROOF) ROOF.hR = ROOF.hE + ROOF.s*(ROOF.yR-ROOF.yF);
 function buildRoof(group, x0, x1){
   const {yF,yB,yR,hE,hR,s} = ROOF, B = new MeshBuilder(), k = Math.hypot(1,s), L = (yR-yF)*k;
   const nf = [0,1/k,s/k], nb = [0,1/k,-s/k];
@@ -1221,18 +1272,24 @@ function buildRoof(group, x0, x1){
     const m = new THREE.Mesh(g, MAT.ext); m.castShadow = m.receiveShadow = true; group.add(m);
   }
 }
-buildRoof(roofGroup, 0, LW);
+if (ROOF) buildRoof(roofGroup, TL.x0 ?? 0, TL.x1 ?? LW);
 
 // ------------------------------------------------------------------ equipamentos fixos vistos nas fotos
 {
   const B = new MeshBuilder();
-  // box frontal (cerca de 70 cm de fundo) junto à parede da frente; a basculante fica depois dele
-  addPB(B,3.73,6.515,4.32,6.525,FLOOR+0.03,1.92,'glass');                                                       // folha fixa
-  { const LB = new MeshBuilder(), lg = new THREE.Group();                                                       // folha de correr do box
-    addPB(LB,4.24,6.54,4.82,6.55,FLOOR+0.03,1.92,'glass'); addPB(LB,4.27,6.55,4.29,6.575,0.95,1.35,'alu'); LB.build(lg);
-    lotGroup.add(lg); registerDoor('box', {kind:'slide', group:lg, dist:0.5, axis:[-1,0], gap:null, center:[4.53,6.545]}); }
-  addPB(B,3.70,6.50,4.85,6.565,1.92,1.96,'alu'); addPB(B,3.70,6.50,4.85,6.565,FLOOR,FLOOR+0.03,'alu');             // trilhos
-  addPB(B,3.70,6.50,3.73,6.565,FLOOR,1.96,'alu'); addPB(B,4.82,6.50,4.85,6.565,FLOOR,1.96,'alu');                   // perfis nas paredes
+  // box de vidro (na Casa 975: o frontal do banheiro, cerca de 70 cm de fundo, junto à parede da frente; a basculante fica depois dele)
+  PL.boxes.forEach((bx, bi) => {
+    const ax = bx.eixo!=='y', a = bx.a, b = bx.b, c = bx.c, m = (a+b)/2;
+    const P = (Bd, p0, p1, q0, q1, h0, h1, key) => ax ? addPB(Bd, p0,q0,p1,q1, h0,h1, key) : addPB(Bd, q0,p0,q1,p1, h0,h1, key);
+    P(B, a+0.03,m+0.045, c+0.015,c+0.025, FLOOR+0.03,1.92,'glass');                                              // folha fixa
+    const LB = new MeshBuilder(), lg = new THREE.Group(), s0 = m-0.035, s1 = b-0.03;                             // folha de correr
+    P(LB, s0,s1, c+0.04,c+0.05, FLOOR+0.03,1.92,'glass'); P(LB, s0+0.03,s0+0.05, c+0.05,c+0.075, 0.95,1.35,'alu'); LB.build(lg);
+    lotGroup.add(lg);
+    const cen = ax ? [(s0+s1)/2, c+0.045] : [c+0.045, (s0+s1)/2];
+    registerDoor(bi ? 'box'+(bi+1) : 'box', {kind:'slide', group:lg, dist:+(s1-s0-0.08).toFixed(4), axis:ax ? [-1,0] : [0,1], gap:null, center:cen});
+    P(B, a,b, c,c+0.065, 1.92,1.96,'alu'); P(B, a,b, c,c+0.065, FLOOR,FLOOR+0.03,'alu');                           // trilhos
+    P(B, a,a+0.03, c,c+0.065, FLOOR,1.96,'alu'); P(B, b-0.03,b, c,c+0.065, FLOOR,1.96,'alu');                     // perfis nas paredes
+  });
   B.build(lotGroup);
 }
 
@@ -1245,21 +1302,26 @@ const ctxFar = [];
   const ceilP = ceilGroup.clone(); ceilP.children = ceilP.children.filter(o => !(o.geometry && o.geometry.type==='CircleGeometry'));
   const proto = new THREE.Group(); proto.add(full, roofGroup.clone(), lotGroup.clone(), ceilP);
   const put = (x, z, rot, far) => { const g = proto.clone(); g.position.set(x, 0, z); g.rotation.y = rot; context.add(g); if (far) ctxFar.push(g); };
-  put(-5,0,0,false); put(5,0,0,false); put(-10,0,0,true); put(10,0,0,true);
-  put(0,13.5,Math.PI,true); put(5,13.5,Math.PI,false); put(10,13.5,Math.PI,false); put(15,13.5,Math.PI,true);
+  if (PL.vizinhanca==='geminadas'){
+    put(-LW,0,0,false); put(LW,0,0,false); put(-2*LW,0,0,true); put(2*LW,0,0,true);
+    put(0,13.5,Math.PI,true); put(LW,13.5,Math.PI,false); put(2*LW,13.5,Math.PI,false); put(3*LW,13.5,Math.PI,true);
+  }
   const W = new MeshBuilder();
-  floorQuad(W,'calc',-16,-13.5,21,-11.2,0.03); addPB(W,-16,-11.2,21,-11.05,0,0.12,'calc');
+  floorQuad(W,'calc',CX0,-13.5,CX1,-11.2,0.03); addPB(W,CX0,-11.2,CX1,-11.05,0,0.12,'calc');
   W.build(context, {cast:false});
-  for (const px of [-17.2,-2.2,12.8,27.8]){
+  const POLES = []; for (let i = 0; CX0-1.2+15*i < CX1+15; i++) POLES.push(+(CX0-1.2+15*i).toFixed(3));      // postes a cada 15 m
+  const P0 = POLES[0], PN = POLES[POLES.length-1];
+  for (const px of POLES){
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.14,9,12), MAT.pole); p.position.set(px, 4.5, 1.2); p.castShadow = true; context.add(p);
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,1.5), MAT.pole); arm.position.set(px, 8.3, 1.2); arm.castShadow = true; context.add(arm);
   }
   const wireM = new THREE.LineBasicMaterial({color:0x1d1d1d});
   const wire = pts => context.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), wireM));
   for (const [dz,h] of [[-0.6,8.38],[0,8.38],[0.6,8.38],[0,7.3]]){
-    const pts = []; for (let x=-17.2; x<=27.81; x+=0.5){ const seg = ((x+17.2)%15+15)%15; pts.push(new THREE.Vector3(x, h-0.4*Math.sin(Math.PI*seg/15), 1.2+dz)); } wire(pts);
+    const pts = []; for (let x=P0; x<=PN+0.01; x+=0.5){ const seg = ((x-P0)%15+15)%15; pts.push(new THREE.Vector3(x, h-0.4*Math.sin(Math.PI*seg/15), 1.2+dz)); } wire(pts);
   }
-  { const a = new THREE.Vector3(-2.2,7.3,1.2), b = new THREE.Vector3(4.66,1.95,0.02), pts = [];   // ramal até o medidor
+  if (PL.medidor){ const mx = (PL.medidor[0]+PL.medidor[1])/2-0.015, px = POLES.reduce((p, q) => Math.abs(q-mx) < Math.abs(p-mx) ? q : p);
+    const a = new THREE.Vector3(px,7.3,1.2), b = new THREE.Vector3(mx,1.95,0.02), pts = [];   // ramal até o medidor
     for (let i=0;i<=24;i++){ const t = i/24, p = a.clone().lerp(b,t); p.y -= 0.5*Math.sin(Math.PI*t); pts.push(p); } wire(pts); }
 }
 
@@ -1276,7 +1338,11 @@ function floorLabel(text, sub, x, y, maxW){
 }
 function buildLabels(){
   labels.clear();
-  for (const r of ROOMS){ if (r.id==='hall') continue; const [a,b,c,d]=r.r; labels.add(floorLabel(r.nome, r.dims, (a+c)/2, r.id==='gar'?3.2:(b+d)/2, (c-a)*0.9)); }
+  for (const r of ROOMS){
+    if (r.rotulo===false) continue;
+    const [a,b,c,d]=r.r, [lx,ly] = Array.isArray(r.rotulo) ? r.rotulo : [(a+c)/2, (b+d)/2];
+    labels.add(floorLabel(r.nome, r.dims, lx, ly, (c-a)*0.9));
+  }
   invalidate();
 }
 const arcMat = new THREE.LineDashedMaterial({color:0x8a5a2b, dashSize:0.06, gapSize:0.05});
@@ -2345,7 +2411,7 @@ function settle(it){                // cuba ou cooktop sobre uma bancada: assent
   it.elev = e; return true;
 }
 function refreshCounters(){ for (const c of items) if (isModel(c) && COUNTERS.has(tipoOf(c))) upsertMesh(c); }
-const WALL_SOLIDS = SOLIDS.filter(r => !FIXED_SOLIDS.includes(r) && !MUROS.includes(r) && r !== PILLAR);
+const WALL_SOLIDS = SOLIDS.filter(r => !FIXED_SOLIDS.includes(r) && !MUROS.includes(r) && !PILLARS.includes(r));
 
 function itemRect(it){
   const r=(it.rot||0)*RAD, c=Math.abs(Math.cos(r)), s=Math.abs(Math.sin(r)), hw=(it.w*c+it.d*s)/2, hd=(it.w*s+it.d*c)/2;
@@ -2354,7 +2420,7 @@ function itemRect(it){
 
 // ------------------------------------------------------------------ colisão móvel × parede (retângulo girado contra retângulos, teorema do eixo separador)
 const OBST = [...WALL_SOLIDS.map(r => ({r, h0:0, h1:H})), ...FIXED_SOLIDS.map(r => ({r, h0:0, h1:1})),
-  ...MUROS.map(r => ({r, h0:0, h1:2.0})), {r:PILLAR, h0:0, h1:2.05}];
+  ...MUROS.map(r => ({r, h0:0, h1:MURO_H})), ...PILLARS.map((r, i) => ({r, h0:0, h1:PILLAR_H[i]}))];
 function axesOf(it){ const a=(it.rot||0)*RAD; return {u:[Math.cos(a),-Math.sin(a)], v:[Math.sin(a),Math.cos(a)], hw:it.w/2, hd:it.d/2}; }
 function sat(it, A, r){       // menor deslocamento que separa o móvel do retângulo r, ou null se já estão separados
   const rc=[(r[0]+r[2])/2,(r[1]+r[3])/2], rh=[(r[2]-r[0])/2,(r[3]-r[1])/2], d=[it.x-rc[0], it.y-rc[1]];
@@ -2989,7 +3055,7 @@ canvas.addEventListener('dblclick', e => {
   const hid = hitItem(e, true); if (hid){ toggleFurn(hid); return; }     // duplo clique num móvel abre ou fecha as portas e gavetas
   if (mode==='walk' || hitDoor(e)) return;
   const f = floorPoint(e, 0); if (!f) return;
-  if (f.x < -14 || f.x > 19 || f.y < -13 || f.y > 24.8) return;
+  if (f.x < -14 || f.x > LW+14 || f.y < -13 || f.y > LD-0.2) return;
   setView('walk', f);
 });
 // roda: Ctrl/Alt gira o móvel selecionado; no modo Caminhar, anda
@@ -3092,8 +3158,8 @@ function camStep(dt){
 
 // câmeras orbitais (criadas depois dos listeners acima para eles rodarem antes)
 const ctrlP = new THREE.OrbitControls(persp, canvas);
-Object.assign(ctrlP, {enableDamping:true, dampingFactor:0.12, maxPolarAngle:Math.PI*0.495, minDistance:1, maxDistance:70});
-ortho.up.set(0,0,-1); ortho.position.set(2.5,40,-12.5);
+Object.assign(ctrlP, {enableDamping:true, dampingFactor:0.12, maxPolarAngle:Math.PI*0.495, minDistance:1, maxDistance:Math.max(LD*2.8, LW*4)});
+ortho.up.set(0,0,-1); ortho.position.set(LW/2,40,-LD/2);
 const ctrlO = new THREE.OrbitControls(ortho, canvas);
 Object.assign(ctrlO, {enableRotate:false, screenSpacePanning:true, enableDamping:true, dampingFactor:0.12, minZoom:0.6, maxZoom:14});
 ctrlO.mouseButtons = {LEFT:THREE.MOUSE.PAN, MIDDLE:THREE.MOUSE.DOLLY, RIGHT:THREE.MOUSE.PAN};
@@ -3102,13 +3168,13 @@ ctrlO.enabled = false;
 function setOrbitEnabled(on){ ctrlP.enabled = on && ['3d','front','back'].includes(mode); ctrlO.enabled = on && mode==='top'; }
 
 // ------------------------------------------------------------------ modo Caminhar
-const walk = {x:1.9, y:2.4, yaw:-0.18, pitch:-0.05, keys:new Set(), joy:{x:0,y:0}, path:null, face:null, level:false};
+const walk = {x:PL.entrada.x, y:PL.entrada.y, yaw:PL.entrada.rumo, pitch:-0.05, keys:new Set(), joy:{x:0,y:0}, path:null, face:null, level:false};
 const eyeH = () => parseFloat($('eye').value) || 1.6;
 const sens = () => parseFloat($('sens').value) || 1;
 const lookDir = () => $('lookInvert').checked ? -1 : 1;
 const angDiff = (a, b) => ((((a-b+Math.PI) % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI)) - Math.PI;
 function updateFP(){ fpCam.position.set(walk.x, eyeH(), -walk.y); fpCam.rotation.set(walk.pitch, walk.yaw, 0); updateWhere(); invalidate(); }
-const NEIGHBOR = [[-40,0.02,-0.12,70],[5.12,0.02,40,70],[-40,25,40,70]];
+const NEIGHBOR = [[-40,0.02,-0.12,LD+45],[LW+0.12,0.02,LW+35,LD+45],[-40,LD,LW+35,LD+45]];
 const blocksWalk = it => isShown(it) && (it.elev||0) < 1.0 && it.h > 0.25 && !['tapete','piso','cobertura'].includes(tipoOf(it));
 function walkObstacles(){ const R = SOLIDS.concat(NEIGHBOR, doorBlocks()); if ($('tFurnCol').checked) for (const it of items) if (blocksWalk(it)) R.push(...partsOf(it).map(itemRect)); return R; }
 function collide(x, y, R = walkObstacles()){
@@ -3119,12 +3185,12 @@ function collide(x, y, R = walkObstacles()){
     if (d2 > 1e-10){ const d=Math.sqrt(d2), p=(r-d)/d; x+=dx*p; y+=dy*p; }
     else { const L=x-x0, Rr=x1-x, B=y-y0, T=y1-y, m=Math.min(L,Rr,B,T); if (m===L) x=x0-r; else if (m===Rr) x=x1+r; else if (m===B) y=y0-r; else y=y1+r; }
   }
-  return [clamp(x,-14,19), clamp(y,-13.2,24.8)];
+  return [clamp(x,-14,LW+14), clamp(y,-13.2,LD-0.2)];
 }
 function moveWalk(dx, dy){ [walk.x, walk.y] = collide(walk.x+dx, walk.y+dy); updateFP(); }
 
 // caminho até um ponto: grade de 10 cm sobre o terreno, A* e depois corta os cantos desnecessários
-const NAV = {x0:-14, y0:-13.2, c:0.1}; NAV.nx = Math.round((19-NAV.x0)/NAV.c); NAV.ny = Math.round((25.0-NAV.y0)/NAV.c);
+const NAV = {x0:-14, y0:-13.2, c:0.1}; NAV.nx = Math.round((LW+14-NAV.x0)/NAV.c); NAV.ny = Math.round((LD-NAV.y0)/NAV.c);
 let navBase = null, navCache = null, navKey = -1;
 function markRect(g, [a,b,c,d], pad){
   const i0=Math.max(0,Math.floor((a-pad-NAV.x0)/NAV.c)), i1=Math.min(NAV.nx-1,Math.ceil((c+pad-NAV.x0)/NAV.c));
@@ -3207,7 +3273,7 @@ function goTo(x, y, face=null){
   if (P.partial) toast($('tFurnCol').checked ? 'Os móveis fecham a passagem; fui até o ponto mais perto. Dá para desligar a colisão com móveis em Ajustes.' : 'Não dá para chegar lá; fui até o ponto mais perto.', 4500);
   return true;
 }
-function goHome(){ if (selectedId) select(null); goTo(1.9, 2.4, -0.18); }
+function goHome(){ if (selectedId) select(null); goTo(PL.entrada.x, PL.entrada.y, PL.entrada.rumo); }
 function autoOpenDoors(vx, vy, reach){      // andando em direção a uma porta fechada, ela abre
   const L = Math.hypot(vx, vy); if (L < 1e-6) return; vx /= L; vy /= L;
   for (const p of doorParts.values()){
@@ -3261,19 +3327,19 @@ function updateWhere(){
 }
 // mapa (clique para ir até o ponto)
 const mini = $('mini'), mg = mini.getContext('2d'); let miniWhole = false;
-function miniXf(){ const W = mini.width; if (miniWhole){ const s = W/27.6; return {s, ox:2.5-W/(2*s), oy:25.3}; } const span = 9, s = W/span; return {s, ox:walk.x-span/2, oy:walk.y+span/2}; }
+function miniXf(){ const W = mini.width; if (miniWhole){ const sp = Math.max(LD, LW)+2.6, s = W/sp; return {s, ox:LW/2-W/(2*s), oy:LD+0.3+(sp-LD-2.6)/2}; } const span = 9, s = W/span; return {s, ox:walk.x-span/2, oy:walk.y+span/2}; }
 function drawMini(){
   const W = mini.width, {s, ox, oy} = miniXf(), X = x => (x-ox)*s, Y = y => (oy-y)*s;
   mg.clearRect(0,0,W,W);
   mg.fillStyle = 'rgba(210,205,196,0.92)'; mg.fillRect(X(0),Y(LD),LW*s,LD*s);
-  mg.fillStyle = 'rgba(160,156,150,0.6)'; mg.fillRect(X(-6),Y(0),17*s,2.2*s);
+  const sw = Math.max(17, LW+12); mg.fillStyle = 'rgba(160,156,150,0.6)'; mg.fillRect(X(LW/2-sw/2),Y(0),sw*s,2.2*s);
   mg.fillStyle = 'rgba(250,249,246,0.97)';
   for (const id of INTERIOR){ const [a,b,c,d] = ROOM[id].r; mg.fillRect(X(a),Y(d),(c-a)*s,(d-b)*s); }
   mg.fillStyle = '#2b3033'; for (const [a,b,c,d] of SOLIDS) mg.fillRect(X(a),Y(d),(c-a)*s,(d-b)*s);
   for (const it of items){ if (!isShown(it)) continue; mg.globalAlpha = 0.85; mg.fillStyle = it.id===selectedId ? '#1f9ed1' : (it.cor||'#8a9aa5'); for (const p of partsOf(it)){ const [a,b,c,d] = itemRect(p); mg.fillRect(X(a),Y(d),(c-a)*s,(d-b)*s); } mg.globalAlpha = 1; }
   if (!miniWhole){
     mg.fillStyle = 'rgba(28,38,41,0.75)'; mg.font = '600 20px "IBM Plex Sans", sans-serif'; mg.textAlign = 'center'; mg.textBaseline = 'middle';
-    for (const r of ROOMS){ if (r.id==='hall' || r.id==='jard') continue; const [a,b,c,d] = r.r, cx = X((a+c)/2), cy = Y((b+d)/2); if (cx>-40 && cx<W+40 && cy>-20 && cy<W+20) mg.fillText(r.nome, cx, cy); }
+    for (const r of ROOMS){ if (r.atalho===false) continue; const [a,b,c,d] = r.r, cx = X((a+c)/2), cy = Y((b+d)/2); if (cx>-40 && cx<W+40 && cy>-20 && cy<W+20) mg.fillText(r.nome, cx, cy); }
   }
   if (walk.path){
     mg.strokeStyle = '#1f6f8b'; mg.lineWidth = 4; mg.setLineDash([10,8]); mg.beginPath(); mg.moveTo(X(walk.x),Y(walk.y));
@@ -3496,12 +3562,12 @@ const store = {
       this.cfg.onSnapshot(s => { config = {...CONFIG_DEFAULT, ...(s.exists ? s.data() : {})}; applyConfig(); }, err => console.warn(err));
     } else {
       this.mode = 'local';
-      try { items = JSON.parse(localStorage.getItem('casa975-itens') || '[]'); } catch { items = []; }
+      try { items = JSON.parse(localStorage.getItem(CHAVE+'-itens') || '[]'); } catch { items = []; }
       try {           // a pia do banheiro deixou de ser fixa: entra uma vez como item editável
-        if (!localStorage.getItem('casa975-seed-pia') && !items.some(x => x.id===PIA_BAN.id)){ items.push({...PIA_BAN, criado:new Date().toISOString()}); this.saveLocal(); }
+        if (!window.__PLANTA && !localStorage.getItem('casa975-seed-pia') && !items.some(x => x.id===PIA_BAN.id)){ items.push({...PIA_BAN, criado:new Date().toISOString()}); this.saveLocal(); }
         localStorage.setItem('casa975-seed-pia', '1');
       } catch {}
-      try { config = {...CONFIG_DEFAULT, ...JSON.parse(localStorage.getItem('casa975-config') || '{}')}; } catch {}
+      try { config = {...CONFIG_DEFAULT, ...JSON.parse(localStorage.getItem(CHAVE+'-config') || '{}')}; } catch {}
       refresh(); applyConfig(); setStatus('warn', 'Salvando só neste navegador');
     }
   },
@@ -3510,7 +3576,7 @@ const store = {
       console.warn(e); toast(e && e.code==='quota_exceeded' ? 'Limite de itens atingido. Exclua algum item.' : 'Não consegui salvar a última alteração.');
     });
   },
-  saveLocal(){ try { localStorage.setItem('casa975-itens', JSON.stringify(items)); } catch {} },
+  saveLocal(){ try { localStorage.setItem(CHAVE+'-itens', JSON.stringify(items)); } catch {} },
   async add(data, id){
     if (this.mode==='db'){ const ref = id ? this.col.doc(id) : this.col.doc(); items.push({id:ref.id, ...data}); refresh(); this.queue(ref.id, () => ref.set(data)); return ref.id; }
     id = id || 'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -3528,7 +3594,7 @@ const store = {
   setConfig(patch){
     config = {...config, ...patch}; applyConfig();
     if (this.mode==='db') this.queue('cfg', () => this.cfg.set({...config}));
-    else { try { localStorage.setItem('casa975-config', JSON.stringify(config)); } catch {} }
+    else { try { localStorage.setItem(CHAVE+'-config', JSON.stringify(config)); } catch {} }
   },
 };
 function refresh(){ syncMeshes(); renderList(); renderEditor(); renderBudget(); updateItemBar(); if (mode==='walk') invalidate(); }
@@ -3549,10 +3615,11 @@ function applyRoof(){
   ceilGroup.traverse(o => { if (o.isMesh) o.castShadow = on; });
   invalidate();
 }
-const VIEW_POS = {'3d':[[-5,11,0],[2.5,0,-11]], front:[[2.5,1.65,10.5],[2.5,1.6,-6]], back:[[2.5,3.2,-30],[2.5,1.2,-15]]};
+const VS = Math.max(1, LW/5, LD/25);         // lotes maiores: câmera mais longe
+const VIEW_POS = {'3d':[[LW/2-7.5*VS,11*VS,0],[LW/2,0,-LD*11/25]], front:[[LW/2,1.65,10.5],[LW/2,1.6,-6]], back:[[LW/2,3.2,-(LD+5)],[LW/2,1.2,-(LD-10)]]};
 function resetView(){
   if (mode==='walk'){ setView('3d'); return; }
-  if (mode==='top'){ ortho.position.set(2.5,40,-12.5); ctrlO.target.set(2.5,0,-12.5); ortho.zoom = 1; ortho.updateProjectionMatrix(); ctrlO.update(); }
+  if (mode==='top'){ ortho.position.set(LW/2,40,-LD/2); ctrlO.target.set(LW/2,0,-LD/2); ortho.zoom = 1; ortho.updateProjectionMatrix(); ctrlO.update(); }
   else { const P = VIEW_POS[mode]; persp.position.set(...P[0]); ctrlP.target.set(...P[1]); ctrlP.update(); }
   invalidate();
 }
@@ -3588,10 +3655,10 @@ function setView(v, at){
   MAT.cap.color.set(v==='top' ? 0x3a3f42 : 0xe6e4df);
   if (v==='front' || v==='back') $('tRoof').checked = true; else if (v==='3d' || v==='top') $('tRoof').checked = false;
   applyRoof(); placeSun();
-  if (v==='top'){ cam = ortho; ortho.position.set(2.5,40,-12.5); ctrlO.target.set(2.5,0,-12.5); ortho.zoom = 1; ortho.updateProjectionMatrix(); }
+  if (v==='top'){ cam = ortho; ortho.position.set(LW/2,40,-LD/2); ctrlO.target.set(LW/2,0,-LD/2); ortho.zoom = 1; ortho.updateProjectionMatrix(); }
   else if (walking){
     cam = fpCam;
-    if (at){ walk.x = at.x; walk.y = at.y; walk.yaw = at.y > 17.5 ? Math.PI : 0; walk.pitch = -0.05; }
+    if (at){ walk.x = at.x; walk.y = at.y; walk.yaw = at.y > LD*7/10 ? Math.PI : 0; walk.pitch = -0.05; }
     [walk.x, walk.y] = collide(walk.x, walk.y); walk.path = null; whereTxt = ''; updateFP(); canvas.focus({preventScroll:true});
   } else {
     cam = persp;
@@ -3608,7 +3675,7 @@ function resize(){
   const r = canvas.getBoundingClientRect(), w = Math.max(1,r.width), h = Math.max(1,r.height);
   renderer.setSize(w, h, false);
   persp.aspect = fpCam.aspect = w/h; persp.updateProjectionMatrix(); fpCam.updateProjectionMatrix();
-  let hh = 27/2, hw = hh*w/h; if (hw < 4){ hw = 4; hh = hw*h/w; }
+  let hh = (LD+2)/2, hw = hh*w/h; if (hw < LW/2+1.5){ hw = LW/2+1.5; hh = hw*h/w; }
   Object.assign(ortho, {left:-hw, right:hw, top:hh, bottom:-hh}); ortho.updateProjectionMatrix();
   invalidate();
 }
@@ -3762,7 +3829,7 @@ function renderEditor(){
   if (it.link && /^https?:\/\//.test(it.link)) card.append(mk('a', {href:it.link, target:'_blank', rel:'noopener', textContent:'Abrir página do produto'}));
   if (it.fonte) card.append(mk('p', {className:'note', textContent:'Medidas: '+it.fonte}));
   if (it.status !== 'tenho'){ const e = estLine(it); if (e) card.append(e); }
-  if (it.link && it.conferir) card.append(mk('p', {className:'note'}, mk('span', {className:'pill info', textContent:'link a conferir'}), ' Peça no chat do Claude "confere os links da Casa 975" para ler a página da loja e acertar medidas e preço.'));
+  if (it.link && it.conferir) card.append(mk('p', {className:'note'}, mk('span', {className:'pill info', textContent:'link a conferir'}), ` Peça no chat do Claude "confere os links da ${NOME}" para ler a página da loja e acertar medidas e preço.`));
   card.append(mk('div', {className:'flag', id:'eFlag'}));
   if (it.oculto){ const f = mk('div', {className:'flag info row'}); f.append(mk('span', {textContent:'Este móvel está oculto no 3D.'}), mk('button', {className:'btn', textContent:'Mostrar', onclick:() => act.update(it.id, {oculto:false})})); card.append(f); }
   const bMove = mk('button', {className:'btn gzbtn'+(tcMode==='translate'?' on':''), textContent:'Setas: mover'});
@@ -3864,7 +3931,7 @@ $('aNome').addEventListener('input', () => { if (!$('aTipo').dataset.manual){ $(
 $('aTipo').addEventListener('change', () => { $('aTipo').dataset.manual = '1'; syncModelo(); });
 for (const [box, list] of [['presets', PRESETS], ['presetsObra', PRESETS_OBRA]]) for (const p of list) $(box).append(mk('button', {textContent:p[0], onclick:() => { fillForm({nome:p[0], tipo:p[1], w:p[2], d:p[3], h:p[4], cor:p[5], elev:p[6]||0, shape:p[7]||null}); if (list===PRESETS_OBRA && !['sala','coz'].includes($('aRoom').value)) return; if (list===PRESETS_OBRA) $('aRoom').value = 'quin'; }}));
 for (const r of ROOMS) $('aRoom').append(mk('option', {value:r.id, textContent:r.nome}));
-$('aRoom').value = 'sala';
+$('aRoom').value = ROOM.sala ? 'sala' : (ROOMS.find(r => r.interno) || ROOMS[0] || {id:''}).id;
 $('aGo').onclick = async () => {
   const n = v => Math.max(0.01, (parseFloat(v)||0)/100), preco = parseFloat($('aPreco').value);
   const data = { nome:$('aNome').value.trim()||'Item', tipo:$('aTipo').value, w:n($('aW').value), d:n($('aD').value), h:n($('aH').value),
@@ -3884,7 +3951,7 @@ $('aGo').onclick = async () => {
     data.rot = ((Math.round((-walk.yaw*180/Math.PI)/15)*15)%360+360)%360;
     where = 'na sua frente';
   } else {
-    const r = ROOM[$('aRoom').value] || ROOM.sala, [a,b,c,d] = r.r;
+    const r = ROOM[$('aRoom').value] || ROOMS[0] || LOTE_TODO, [a,b,c,d] = r.r;
     data.x = snap((a+c)/2); data.y = snap((b+d)/2); where = 'em '+r.nome;
     if (SITS.has(data.tipo)){          // cuba e cooktop: em cima de uma bancada do cômodo, num trecho livre
       const cs = items.filter(k => isShown(k) && COUNTERS.has(tipoOf(k)) && roomAt(k.x,k.y)?.id===r.id).sort((p,q) => q.w*q.d-p.w*p.d);
@@ -4092,7 +4159,7 @@ function renderBudget(){
   if (!estCtl) $('estGo').textContent = missing.length ? 'Estimar preços que faltam' : 'Refazer as estimativas';
   const chk = list.filter(it => it.link && it.conferir);
   $('chkCard').hidden = !chk.length;
-  $('chkTxt').textContent = `${chk.length} ${chk.length===1?'item tem link':'itens têm link'} que ainda não ${chk.length===1?'foi conferido':'foram conferidos'} na loja. No chat do Claude, peça "confere os links da Casa 975": lá ele abre cada página, lê a descrição e corrige medidas e preço aqui.`;
+  $('chkTxt').textContent = `${chk.length} ${chk.length===1?'item tem link':'itens têm link'} que ainda não ${chk.length===1?'foi conferido':'foram conferidos'} na loja. No chat do Claude, peça "confere os links da ${NOME}": lá ele abre cada página, lê a descrição e corrige medidas e preço aqui.`;
   const box = $('budList');
   if (box.contains(document.activeElement)) return;          // não recria enquanto digita um preço
   box.textContent = '';
@@ -4168,7 +4235,7 @@ $('estGo').onclick = () => {
 };
 $('estStop').onclick = () => estCtl && estCtl.abort();
 $('chkCopy').onclick = async () => {
-  const txt = 'confere os links da Casa 975';
+  const txt = `confere os links da ${NOME}`;
   try { await navigator.clipboard.writeText(txt); toast('Pedido copiado. Cole no chat do Claude.'); }
   catch { toast('Copie e cole no chat do Claude: '+txt, 6000); }
 };
@@ -4189,15 +4256,18 @@ $('budCsv').onclick = async () => {
       g?'':cm(it.w), g?'':cm(it.d), g?'':cm(it.h), STATUS[it.status||'planejado'], num(it.preco), num(it.est), it.estMin && it.estMax ? `${it.estMin} a ${it.estMax}` : '', it.link||'']);
   }
   const csv = '﻿' + rows.map(r => r.map(q).join(';')).join('\r\n');
-  try { await dl.save({filename:'orcamento-casa-975.csv', data:csv}); toast('Planilha salva'); }
+  try { await dl.save({filename:`orcamento-${SLUG}.csv`, data:csv}); toast('Planilha salva'); }
   catch (e) { if (!e || e.code!=='declined') toast('Não consegui gerar a planilha.'); }
 };
 
 // ------------------------------------------------------------------ sol: orientação, data e hora
 const deg = Math.PI/180;
 const SIDES = ['frente','frente-esquerda','esquerda','fundo-esquerda','fundo','fundo-direita','direita','frente-direita'];
-const SIDE_TXT = {'frente':'pela frente (rua)','frente-esquerda':'pela frente, à esquerda','esquerda':'pelo lado esquerdo (garagem e quartos)','fundo-esquerda':'pelo fundo, à esquerda',
-  'fundo':'pelo fundo (quintal)','fundo-direita':'pelo fundo, à direita','direita':'pelo lado direito (sala e cozinha)','frente-direita':'pela frente, à direita'};
+const SIDE_TXT = {'frente':'pela frente (rua)','frente-esquerda':'pela frente, à esquerda','esquerda':'pelo lado esquerdo','fundo-esquerda':'pelo fundo, à esquerda',
+  'fundo':'pelo fundo (quintal)','fundo-direita':'pelo fundo, à direita','direita':'pelo lado direito','frente-direita':'pela frente, à direita'};
+for (const [k, v] of [['esquerda', 90], ['direita', 270]]) if (PL.lados[k]){
+  SIDE_TXT[k] += ` (${PL.lados[k]})`; const o = document.querySelector(`#sunSide option[value="${v}"]`); if (o) o.textContent += ` (${PL.lados[k]})`;
+}
 const COMPASS16 = ['N','NNE','NE','ENE','L','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
 const frontAz = () => (((90 - (Number(config.sunSide)+Number(config.sunFine))) % 360) + 360) % 360;
 function azToWorld(az){ const t = (az-frontAz())*deg; return new THREE.Vector3(-Math.sin(t), 0, Math.cos(t)); }
@@ -4217,13 +4287,13 @@ function scheduleEnv(){
   const now = performance.now(); clearTimeout(envTimer);
   if (now-lastEnv > 350){ lastEnv = now; updateEnv(); } else envTimer = setTimeout(() => { lastEnv = performance.now(); updateEnv(); invalidate(); }, 360);
 }
-const sunDir = new THREE.Vector3(0,1,0), shadowAt = new THREE.Vector3(2.5,0,-12.5);
+const sunDir = new THREE.Vector3(0,1,0), shadowAt = new THREE.Vector3(LW/2,0,-LD/2);
 let baseExposure = 0.5;
 function placeSun(){      // ao caminhar, a sombra fica mais nítida em volta de quem anda
   const walking = mode==='walk';
-  if (walking) shadowAt.set(walk.x, 0, -walk.y); else shadowAt.set(2.5, 0, -12.5);
+  if (walking) shadowAt.set(walk.x, 0, -walk.y); else shadowAt.set(LW/2, 0, -LD/2);
   sun.target.position.copy(shadowAt); sun.position.copy(shadowAt).addScaledVector(sunDir, 40);
-  const e = walking ? 11 : 17, sc = sun.shadow.camera;
+  const e = walking ? 11 : SHADOW_E, sc = sun.shadow.camera;
   if (sc.right !== e){ Object.assign(sc, {left:-e, right:e, top:e, bottom:-e}); sc.updateProjectionMatrix(); }
   invalidate();
 }
@@ -4446,7 +4516,7 @@ $('shot').onclick = () => {
   renderFrame();
   canvas.toBlob(async blob => {
     if (!blob){ toast('Não consegui gerar a imagem.'); return; }
-    try { await dl.save({filename:'casa-975.png', data:blob}); toast('Imagem salva'); }
+    try { await dl.save({filename:`${SLUG}.png`, data:blob}); toast('Imagem salva'); }
     catch (e) { if (!e || e.code!=='declined') toast('Não consegui salvar a imagem.'); }
   }, 'image/png');
 };
@@ -4467,7 +4537,7 @@ $('help').addEventListener('click', e => { if (e.target === $('help')) toggleHel
 $('roomBtns').append(mk('button', {id:'measBtn', textContent:'Medir', title:'Régua: clique em dois pontos do chão', onclick:() => setMeasure(!measure.on)}));
 $('measBtn').setAttribute('aria-pressed', 'false');
 $('roomBtns').append(mk('button', {textContent:'Casa toda', title:'Vista inicial (Home)', onclick:() => resetView()}));
-for (const r of ROOMS.filter(r => !['hall','jard'].includes(r.id))) $('roomBtns').append(mk('button', {textContent:r.nome, onclick:() => focusRoom(r)}));
+for (const r of ROOMS.filter(r => r.atalho!==false)) $('roomBtns').append(mk('button', {textContent:r.nome, onclick:() => focusRoom(r)}));
 
 // ------------------------------------------------------------------ desenho final: sombra suave nos cantos (SSAO) e, por cima, nomes, cotas e setas
 // 1) cena em textura com profundidade (sem os objetos de apoio); 2) oclusão calculada pela profundidade;

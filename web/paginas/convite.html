@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Criar senha · Casa Planta</title>
+<link rel="icon" href="/favicon.svg?v=__V__">
+<link rel="stylesheet" href="/vendor/fontes/fontes.css?v=__V__">
+<link rel="stylesheet" href="/css/app.css?v=__V__">
+</head>
+<body class="simples">
+<main class="caixa">
+  <div class="logo">Casa Planta</div>
+  <h1 id="titulo">Criar sua senha</h1>
+  <p class="nota" id="carregando">Conferindo o link…</p>
+  <form id="form" novalidate hidden>
+    <p>Conta: <b id="email"></b></p>
+    <label class="campo" id="nomeCampo">Seu nome<input id="nome" autocomplete="name" maxlength="80"></label>
+    <label class="campo">Senha nova (pelo menos 10 caracteres)<input id="senha" type="password" autocomplete="new-password" minlength="10" required></label>
+    <label class="campo">Repita a senha<input id="senha2" type="password" autocomplete="new-password" required></label>
+    <div class="aviso" id="erro" hidden role="alert"></div>
+    <button class="btn primario" id="ir" type="submit">Salvar e entrar</button>
+  </form>
+  <div class="aviso" id="invalido" hidden role="alert"></div>
+</main>
+<script src="/js/comum.js?v=__V__"></script>
+<script src="/js/convite.js?v=__V__"></script>
+</body>
+</html>

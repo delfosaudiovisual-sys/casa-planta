@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planta · Casa Planta</title>
+<link rel="icon" href="/favicon.svg?v=__V__">
+<link rel="stylesheet" href="/vendor/fontes/fontes.css?v=__V__">
+<link rel="stylesheet" href="/css/app.css?v=__V__">
+</head>
+<body class="editor" data-projeto="__ID__">
+<header class="topo">
+  <a class="btn pequeno" href="/projetos" aria-label="Voltar para os projetos" title="Projetos">←</a>
+  <h1 id="titulo">Planta</h1>
+  <span class="estado" id="estado"></span>
+  <span class="espaco"></span>
+  <button class="btn pequeno" id="bDesfazer" type="button" title="Desfazer (Ctrl+Z)" disabled>Desfazer</button>
+  <button class="btn pequeno" id="bRefazer" type="button" title="Refazer (Ctrl+Y)" disabled>Refazer</button>
+  <button class="btn pequeno" id="bVersoes" type="button">Versões</button>
+  <a class="btn pequeno" id="b3d" href="./">Ver em 3D</a>
+  <button class="btn primario pequeno" id="bSalvar" type="button" disabled>Salvar</button>
+</header>
+<div class="ed">
+  <div class="ed-tela" id="tela">
+    <svg id="svg" aria-label="Desenho da planta" role="img"></svg>
+    <div class="ferramentas" id="ferramentas" role="toolbar" aria-label="Ferramentas">
+      <button class="btn pequeno" data-f="selecionar" aria-pressed="true" title="Selecionar e mover (V)">Selecionar</button>
+      <button class="btn pequeno" data-f="comodo" aria-pressed="false" title="Desenhar cômodo: arraste um retângulo (C)">Cômodo</button>
+      <button class="btn pequeno" data-f="parede" aria-pressed="false" title="Desenhar parede: clique no começo e no fim (P)">Parede</button>
+      <button class="btn pequeno" data-f="door" aria-pressed="false" title="Porta: clique numa parede (D)">Porta</button>
+      <button class="btn pequeno" data-f="win" aria-pressed="false" title="Janela: clique numa parede (J)">Janela</button>
+      <button class="btn pequeno" data-f="glass" aria-pressed="false" title="Porta de vidro de correr: clique numa parede">Porta de vidro</button>
+      <button class="btn pequeno" data-f="basc" aria-pressed="false" title="Basculante (janela alta de banheiro): clique numa parede">Basculante</button>
+      <button class="btn pequeno" data-f="entrada" aria-pressed="false" title="Onde você começa ao caminhar no 3D">Entrada</button>
+      <button class="btn pequeno" id="bEnquadrar" type="button" title="Ver o terreno todo (Home)">Ver tudo</button>
+    </div>
+    <div class="ed-coord" id="coord"></div>
+    <div class="ed-dica" id="dica"></div>
+  </div>
+  <aside class="ed-lado" id="lado">
+    <div class="abas" role="tablist">
+      <button role="tab" data-aba="sel" aria-selected="true">Selecionado</button>
+      <button role="tab" data-aba="comodos" aria-selected="false">Cômodos</button>
+      <button role="tab" data-aba="terreno" aria-selected="false">Terreno</button>
+      <button role="tab" data-aba="fundo" aria-selected="false">Planta de fundo</button>
+    </div>
+    <div data-painel="sel"></div>
+    <div data-painel="comodos" hidden></div>
+    <div data-painel="terreno" hidden></div>
+    <div data-painel="fundo" hidden></div>
+  </aside>
+</div>
+<script src="/js/comum.js?v=__V__"></script>
+<script src="/js/planta.js?v=__V__"></script>
+<script src="/vendor/dxf-parser.js?v=__V__"></script>
+<script src="/js/editor.js?v=__V__"></script>
+</body>
+</html>

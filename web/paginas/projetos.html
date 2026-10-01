@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Projetos · Casa Planta</title>
+<link rel="icon" href="/favicon.svg?v=__V__">
+<link rel="stylesheet" href="/vendor/fontes/fontes.css?v=__V__">
+<link rel="stylesheet" href="/css/app.css?v=__V__">
+</head>
+<body>
+<header class="topo">
+  <span class="marca-app">Casa Planta</span>
+  <span class="espaco"></span>
+  <span class="quem" id="quem"></span>
+  <button class="btn pequeno" id="bConta" type="button">Minha conta</button>
+  <button class="btn pequeno" id="bSair" type="button">Sair</button>
+</header>
+<main class="pagina">
+  <div class="cabeca">
+    <div>
+      <h1>Seus projetos</h1>
+      <p class="nota">Cada projeto é uma casa: a planta, os móveis e o orçamento. Quem tem acesso vê as mudanças na hora.</p>
+    </div>
+    <button class="btn primario" id="bNovo" type="button">Novo projeto</button>
+  </div>
+  <div class="projetos" id="lista"><p class="nota">Carregando…</p></div>
+
+  <section class="bloco" id="admin" hidden>
+    <div class="cabeca">
+      <div>
+        <h2>Pessoas com acesso ao sistema</h2>
+        <p class="nota">Só entra quem recebe um convite. O link do convite também serve para criar uma senha nova se alguém esquecer.</p>
+      </div>
+      <div class="linha">
+        <button class="btn" id="bCopia" type="button">Baixar cópia do banco</button>
+        <button class="btn primario" id="bConvidar" type="button">Convidar pessoa</button>
+      </div>
+    </div>
+    <div class="rolagem"><table class="lista" id="pessoas"></table></div>
+    <details style="margin-top:18px">
+      <summary class="nota">Registro de acessos e mudanças</summary>
+      <div class="rolagem"><table class="lista" id="registro"></table></div>
+    </details>
+  </section>
+  <p class="nota" style="margin-top:40px" id="versao"></p>
+</main>
+<script src="/js/comum.js?v=__V__"></script>
+<script src="/js/projetos.js?v=__V__"></script>
+</body>
+</html>

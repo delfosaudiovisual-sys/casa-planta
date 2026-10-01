@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar · Casa Planta</title>
+<link rel="icon" href="/favicon.svg?v=__V__">
+<link rel="stylesheet" href="/vendor/fontes/fontes.css?v=__V__">
+<link rel="stylesheet" href="/css/app.css?v=__V__">
+</head>
+<body class="simples">
+<main class="caixa">
+  <div class="logo">Casa Planta</div>
+  <h1>Entrar</h1>
+  <p class="nota">Use o e-mail e a senha que você criou pelo convite.</p>
+  <form id="form" novalidate>
+    <label class="campo">E-mail<input id="email" type="email" autocomplete="username" required autofocus></label>
+    <label class="campo">Senha<input id="senha" type="password" autocomplete="current-password" required></label>
+    <div class="aviso" id="erro" hidden role="alert"></div>
+    <button class="btn primario" id="ir" type="submit">Entrar</button>
+  </form>
+  <p class="nota" style="margin-top:16px">Esqueceu a senha ou ainda não tem acesso? Peça um link para quem cuida do sistema.</p>
+</main>
+<script src="/js/comum.js?v=__V__"></script>
+<script src="/js/entrar.js?v=__V__"></script>
+</body>
+</html>

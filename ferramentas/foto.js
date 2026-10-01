@@ -7,6 +7,7 @@
 // Variáveis opcionais:
 //   PAGINA=src/outra.html   página a testar (padrão: src/casa-975-3d.html)
 //   ITENS=dados/itens.json  móveis carregados no localStorage antes de abrir (modo "só neste navegador")
+//   PLANTA=testes/plantas/teste-10x30.json  outra planta no lugar da Casa 975 (vira window.__PLANTA)
 //   CHROMIUM_PATH=...       executável do Chromium, se o do Playwright não estiver instalado
 //
 // Uma cena é um módulo: module.exports = async (page, foto) => { ... await foto('nome'); }
@@ -55,6 +56,10 @@ const EXPOE = 'window.__casa = {hitDoor, occluders, ray, doorParts, toggleDoor, 
     return route.abort();
   });
 
+  if (process.env.PLANTA) {
+    const planta = JSON.parse(fs.readFileSync(path.resolve(raiz, process.env.PLANTA), 'utf8'));
+    await page.addInitScript(p => { window.__PLANTA = p; }, planta);
+  }
   const itens = fs.existsSync(ITENS) ? fs.readFileSync(ITENS, 'utf8') : '[]';
   await page.addInitScript(its => { try { if (!localStorage.getItem('casa975-itens')) localStorage.setItem('casa975-itens', its); } catch {} }, itens);
   await page.goto('http://casa.test/');

@@ -601,6 +601,7 @@ function roomAt(x,y){ for (const r of ROOMS){ const [a,b,c,d]=r.r; if (x>=a&&x<=
 function hash(s){ let h=2166136261; for (const ch of String(s)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h>>>0; }
 function rng(seed){ let a = seed>>>0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const norm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const NUVEM = !!(window.claude && window.claude.nuvem);
 const SLUG = norm(NOME).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'casa';
 const m2 = v => v.toFixed(2).replace('.',',');
 $('casaNome').textContent = NOME; document.title = `${NOME} em 3D`;
@@ -1309,7 +1310,8 @@ const ctxFar = [];
   const W = new MeshBuilder();
   floorQuad(W,'calc',CX0,-13.5,CX1,-11.2,0.03); addPB(W,CX0,-11.2,CX1,-11.05,0,0.12,'calc');
   W.build(context, {cast:false});
-  const POLES = []; for (let i = 0; CX0-1.2+15*i < CX1+15; i++) POLES.push(+(CX0-1.2+15*i).toFixed(3));      // postes a cada 15 m
+  const POLES = [], p0 = -2.2-15*Math.floor((CX0+1)/-15);     // postes a cada 15 m; um logo à esquerda do lote, fora da frente da casa
+  for (let i = 0; p0+15*i < CX1+15; i++) POLES.push(+(p0+15*i).toFixed(3));
   const P0 = POLES[0], PN = POLES[POLES.length-1];
   for (const px of POLES){
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.14,9,12), MAT.pole); p.position.set(px, 4.5, 1.2); p.castShadow = true; context.add(p);
@@ -3548,18 +3550,18 @@ let config = {...CONFIG_DEFAULT};
 function setStatus(kind, txt){ $('dot').className = 'dot '+kind; $('dot').title = txt; $('statusTxt').textContent = txt; }
 const countTxt = () => { const n = items.filter(isModel).length; return `${n} ${n===1?'móvel salvo':'móveis salvos'}`; };
 const store = {
-  mode:'loading', chains:{},
+  mode:'loading', chains:{}, pend:{}, readOnly:false,
   async init(){
     let db = null;
     try { db = window.claude ? await window.claude.use('db') : null; } catch { db = null; }
     if (db){
-      this.mode = 'db'; this.col = db.collection('itens'); this.cfg = db.doc('config/casa');
+      this.mode = 'db'; this.col = db.collection('itens'); this.cfg = db.doc('config/casa'); this.readOnly = !!db.somenteLeitura;
       this.col.onSnapshot(snap => {
-        items = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        items = this.merge(snap.docs.map(d => ({id:d.id, ...d.data()})));
         if (drag){ const it = items.find(x=>x.id===drag.id), e = meshes.get(drag.id); if (it && e){ it.x = e.data.x; it.y = e.data.y; } }
         refresh(); setStatus('ok', countTxt());
       }, err => { console.warn(err); setStatus('warn', 'Sem conexão com os itens salvos'); });
-      this.cfg.onSnapshot(s => { config = {...CONFIG_DEFAULT, ...(s.exists ? s.data() : {})}; applyConfig(); }, err => console.warn(err));
+      this.cfg.onSnapshot(s => { if (this.pend.cfg) return; config = {...CONFIG_DEFAULT, ...(s.exists ? s.data() : {})}; applyConfig(); }, err => console.warn(err));
     } else {
       this.mode = 'local';
       try { items = JSON.parse(localStorage.getItem(CHAVE+'-itens') || '[]'); } catch { items = []; }
@@ -3571,29 +3573,42 @@ const store = {
       refresh(); applyConfig(); setStatus('warn', 'Salvando só neste navegador');
     }
   },
-  queue(key, fn){
-    this.chains[key] = (this.chains[key] || Promise.resolve()).then(fn).catch(e => {
-      console.warn(e); toast(e && e.code==='quota_exceeded' ? 'Limite de itens atingido. Exclua algum item.' : 'Não consegui salvar a última alteração.');
-    });
+  // itens com gravação na fila ficam com a versão local: uma foto do banco que chega antes não desfaz o que acabou de mudar aqui
+  merge(fresh){
+    if (!Object.keys(this.pend).length) return fresh;
+    const mine = new Map(items.map(x => [x.id, x])), seen = new Set(fresh.map(x => x.id));
+    const out = fresh.filter(x => !this.pend[x.id] || mine.has(x.id)).map(x => this.pend[x.id] ? mine.get(x.id) : x);
+    for (const x of items) if (this.pend[x.id] && !seen.has(x.id)) out.push(x);
+    return out;
   },
+  queue(key, fn){
+    this.pend[key] = (this.pend[key] || 0) + 1;
+    this.chains[key] = (this.chains[key] || Promise.resolve()).then(fn).catch(e => {
+      console.warn(e); toast(e && e.code==='quota_exceeded' ? 'Limite de itens atingido. Exclua algum item.' : e && e.code==='somente_leitura' ? 'Você pode ver este projeto, mas não alterar.' : 'Não consegui salvar a última alteração.');
+    }).finally(() => { if (!--this.pend[key]) delete this.pend[key]; });
+  },
+  blocked(){ if (!this.readOnly) return false; toast('Você pode ver este projeto, mas não alterar.'); return true; },
   saveLocal(){ try { localStorage.setItem(CHAVE+'-itens', JSON.stringify(items)); } catch {} },
   async add(data, id){
+    if (this.blocked()) return null;
     if (this.mode==='db'){ const ref = id ? this.col.doc(id) : this.col.doc(); items.push({id:ref.id, ...data}); refresh(); this.queue(ref.id, () => ref.set(data)); return ref.id; }
     id = id || 'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     items.push({id, ...data}); this.saveLocal(); refresh(); return id;
   },
   update(id, patch){
+    if (this.blocked()) return;
     const i = items.findIndex(x=>x.id===id); if (i<0) return;
     items[i] = {...items[i], ...patch}; refresh();
     if (this.mode==='db') this.queue(id, () => this.col.doc(id).update(patch)); else this.saveLocal();
   },
   remove(id){
+    if (this.blocked()) return;
     items = items.filter(x=>x.id!==id); if (selectedId===id) selectedId = null; refresh();
     if (this.mode==='db') this.queue(id, () => this.col.doc(id).delete()); else this.saveLocal();
   },
   setConfig(patch){
     config = {...config, ...patch}; applyConfig();
-    if (this.mode==='db') this.queue('cfg', () => this.cfg.set({...config}));
+    if (this.mode==='db'){ if (!this.readOnly) this.queue('cfg', () => this.cfg.set({...config})); }
     else { try { localStorage.setItem(CHAVE+'-config', JSON.stringify(config)); } catch {} }
   },
 };
@@ -3829,7 +3844,7 @@ function renderEditor(){
   if (it.link && /^https?:\/\//.test(it.link)) card.append(mk('a', {href:it.link, target:'_blank', rel:'noopener', textContent:'Abrir página do produto'}));
   if (it.fonte) card.append(mk('p', {className:'note', textContent:'Medidas: '+it.fonte}));
   if (it.status !== 'tenho'){ const e = estLine(it); if (e) card.append(e); }
-  if (it.link && it.conferir) card.append(mk('p', {className:'note'}, mk('span', {className:'pill info', textContent:'link a conferir'}), ` Peça no chat do Claude "confere os links da ${NOME}" para ler a página da loja e acertar medidas e preço.`));
+  if (it.link && it.conferir) card.append(mk('p', {className:'note'}, mk('span', {className:'pill info', textContent:'link a conferir'}), NUVEM ? ' Abra a página da loja e confira medidas e preço.' : ` Peça no chat do Claude "confere os links da ${NOME}" para ler a página da loja e acertar medidas e preço.`));
   card.append(mk('div', {className:'flag', id:'eFlag'}));
   if (it.oculto){ const f = mk('div', {className:'flag info row'}); f.append(mk('span', {textContent:'Este móvel está oculto no 3D.'}), mk('button', {className:'btn', textContent:'Mostrar', onclick:() => act.update(it.id, {oculto:false})})); card.append(f); }
   const bMove = mk('button', {className:'btn gzbtn'+(tcMode==='translate'?' on':''), textContent:'Setas: mover'});
@@ -3978,7 +3993,7 @@ const qCopy = {
   not_granted:'Você não permitiu que esta página use o Claude. Preencha as medidas manualmente.',
   sampling_disabled:'O Claude não está disponível nesta conta.',
   rate_limited:'Muitas buscas seguidas. Tente de novo em alguns minutos.',
-  session_expired:'Sua sessão expirou. Entre de novo no claude.ai.',
+  session_expired:'Sua sessão expirou. Entre de novo.',
   invalid_json:'A resposta veio num formato inesperado. Tente de novo.',
   refused:'O Claude não respondeu a esse pedido. Tente descrever o produto de outro jeito.',
 };
@@ -4158,7 +4173,7 @@ function renderBudget(){
     : 'Todos os itens têm preço ou estimativa. As estimativas aparecem com ≈ e podem ser refeitas; um preço digitado sempre vale mais que a estimativa.';
   if (!estCtl) $('estGo').textContent = missing.length ? 'Estimar preços que faltam' : 'Refazer as estimativas';
   const chk = list.filter(it => it.link && it.conferir);
-  $('chkCard').hidden = !chk.length;
+  $('chkCard').hidden = NUVEM || !chk.length;
   $('chkTxt').textContent = `${chk.length} ${chk.length===1?'item tem link':'itens têm link'} que ainda não ${chk.length===1?'foi conferido':'foram conferidos'} na loja. No chat do Claude, peça "confere os links da ${NOME}": lá ele abre cada página, lê a descrição e corrige medidas e preço aqui.`;
   const box = $('budList');
   if (box.contains(document.activeElement)) return;          // não recria enquanto digita um preço
@@ -4701,6 +4716,14 @@ const clock = new THREE.Clock();
 })();
 (async () => {
   await store.init();
+  if (NUVEM){        // programa na nuvem: o chat do claude.ai não enxerga este banco
+    for (const el of document.querySelectorAll('.pedidoLinks')) el.closest('p').hidden = true;
+    $('claudeOff').textContent = 'A busca com o Claude não está ligada neste servidor. Preencha as medidas abaixo.';
+  }
+  if (store.readOnly){
+    $('tabAdd').hidden = true; $('tLock').checked = true; $('tLock').disabled = true; $('mLock').hidden = true;
+    for (const id of ['gNome','budLimit','estGo']) { const c = $(id).closest('section'); if (c) c.hidden = true; }
+  }
   try { sample = window.claude ? await window.claude.use('sample') : null; } catch { sample = null; }
   if (!sample) claudeUnavailable();
   try { dl = window.claude ? await window.claude.use('downloads') : null; } catch { dl = null; }

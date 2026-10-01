@@ -1,19 +1,40 @@
 {
-  "name": "casa-975",
-  "version": "0.19.0",
+  "name": "casa-planta",
+  "version": "1.0.0",
   "private": true,
-  "description": "Modelo 3D da casa 975 para planejar móveis, reformas e orçamento",
+  "description": "Programa na nuvem para planejar casas em 3D: planta, móveis, reformas e orçamento, com acesso de várias pessoas",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "verificar": "node ferramentas/verificar-sintaxe.js src/casa-975-3d.html",
+    "start": "node servidor/index.js",
+    "dev": "npm run montar && node --watch-path=servidor --watch-path=compartilhado servidor/index.js",
     "montar": "node ferramentas/montar.js",
-    "montar:offline": "node ferramentas/montar.js --offline",
-    "foto": "node ferramentas/foto.js"
+    "montar:avulso": "node ferramentas/montar.js --avulso",
+    "montar:offline": "node ferramentas/montar.js --avulso --offline",
+    "verificar": "node ferramentas/verificar-sintaxe.js src/casa-975-3d.html && node ferramentas/verificar-js.js",
+    "test": "node --test testes/",
+    "e2e": "node testes/e2e/navegador.js",
+    "foto": "node ferramentas/foto.js",
+    "convidar": "node servidor/cli.js"
   },
   "dependencies": {
-    "three": "0.147.0"
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/static": "^10.1.5",
+    "better-sqlite3": "^12.11.1",
+    "fastify": "^5.12.5"
   },
   "devDependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "dxf-parser": "^1.1.2",
+    "pdfjs-dist": "^6.3.289",
     "playwright": "1.56.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "three": "0.147.0"
   }
 }

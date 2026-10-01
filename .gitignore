@@ -1,3 +1,10 @@
 node_modules/
 dist/
+dist-avulso/
 ferramentas/fotos/
+testes/e2e/fotos/
+dados-servidor/
+*.db
+*.db-wal
+*.db-shm
+.env

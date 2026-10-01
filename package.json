@@ -1,0 +1,18 @@
+{
+  "name": "casa-975",
+  "version": "0.19.0",
+  "private": true,
+  "description": "Modelo 3D da casa 975 para planejar móveis, reformas e orçamento",
+  "scripts": {
+    "verificar": "node ferramentas/verificar-sintaxe.js src/casa-975-3d.html",
+    "montar": "node ferramentas/montar.js",
+    "montar:offline": "node ferramentas/montar.js --offline",
+    "foto": "node ferramentas/foto.js"
+  },
+  "dependencies": {
+    "three": "0.147.0"
+  },
+  "devDependencies": {
+    "playwright": "1.56.0"
+  }
+}
